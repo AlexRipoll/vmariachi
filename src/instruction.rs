@@ -2,7 +2,8 @@
 pub enum Opcode {
     LOAD, // LOAD
     ADD,  // ADD
-    SUB,  // SUB
+    SUB,  // SUBTRACT
+    MUL,  // MULTIPLY
     HLT,  // HALT
     IGL,  // ILLEGAL
 }
