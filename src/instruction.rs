@@ -4,6 +4,7 @@ pub enum Opcode {
     ADD,  // ADD
     SUB,  // SUBTRACT
     MUL,  // MULTIPLY
+    DIV,  // DIVIDE
     HLT,  // HALT
     IGL,  // ILLEGAL
 }

@@ -7,6 +7,7 @@ pub struct VM {
     registers: [i32; 32],
     program: Vec<u8>,
     program_counter: usize,
+    remainder: u32,
 }
 
 impl VM {
@@ -15,6 +16,7 @@ impl VM {
             registers: [0; 32],
             program: Vec::new(),
             program_counter: 0,
+            remainder: 0,
         }
     }
 
@@ -53,6 +55,13 @@ impl VM {
                 let first_register = self.registers[self.next_8_bits() as usize];
                 let second_register = self.registers[self.next_8_bits() as usize];
                 self.registers[self.next_8_bits() as usize] = first_register * second_register;
+            }
+            Opcode::DIV => {
+                let first_register = self.registers[self.next_8_bits() as usize];
+                let second_register = self.registers[self.next_8_bits() as usize];
+                self.registers[self.next_8_bits() as usize] = first_register / second_register;
+                // TODO: handle division by 0
+                self.remainder = (first_register % second_register) as u32;
             }
             Opcode::HLT => {
                 println!("HTL encountered");
@@ -97,6 +106,7 @@ impl From<u8> for Opcode {
             1 => Opcode::ADD,
             2 => Opcode::SUB,
             3 => Opcode::MUL,
+            4 => Opcode::DIV,
             5 => Opcode::HLT,
             _ => Opcode::IGL,
         }
@@ -169,5 +179,29 @@ mod test {
         vm.program.extend_from_slice(&vec![3, 0, 1, 2]); // MUL $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
         assert_eq!(vm.registers[2], 3500);
+    }
+
+    #[test]
+    fn test_opcode_div_without_remainder() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program.extend_from_slice(&vec![0, 1, 0, 5]); // LOAD $1 #5
+        vm.program.extend_from_slice(&vec![4, 0, 1, 2]); // MUL $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
+        vm.run();
+        assert_eq!(vm.registers[2], 100);
+        assert_eq!(vm.remainder, 0);
+    }
+
+    #[test]
+    fn test_opcode_div_with_remainder() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program.extend_from_slice(&vec![0, 1, 0, 6]); // LOAD $1 #6
+        vm.program.extend_from_slice(&vec![4, 0, 1, 2]); // MUL $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
+        vm.run();
+        assert_eq!(vm.registers[2], 83);
+        assert_eq!(vm.remainder, 2);
     }
 }
