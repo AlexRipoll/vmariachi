@@ -1,7 +1,8 @@
 #[derive(Debug, PartialEq)]
 pub enum Opcode {
-    HLT, // HALT
-    IGL, // ILLEGAL
+    HLT,  // HALT
+    IGL,  // ILLEGAL
+    LOAD, // LOAD
 }
 
 #[derive(Debug)]

@@ -22,6 +22,13 @@ impl VM {
                 break;
             }
             match self.decode_opcode() {
+                Opcode::LOAD => {
+                    let register = self.next_8_bits() as usize;
+                    let number = self.next_16_bits() as u16;
+                    self.registers[register] = number as i32;
+
+                    continue;
+                }
                 Opcode::HLT => {
                     println!("HTL encountered");
                     return;
@@ -40,12 +47,28 @@ impl VM {
 
         opcode
     }
+
+    fn next_8_bits(&mut self) -> u8 {
+        let operand = self.program[self.program_counter];
+        self.program_counter += 1;
+
+        operand
+    }
+
+    fn next_16_bits(&mut self) -> u16 {
+        let operand: u16 = ((self.program[self.program_counter] as u16) << 8)
+            | (self.program[self.program_counter + 1] as u16);
+        self.program_counter += 2;
+
+        operand
+    }
 }
 
 impl From<u8> for Opcode {
     fn from(value: u8) -> Self {
         match value {
-            0 => Opcode::HLT,
+            0 => Opcode::LOAD,
+            5 => Opcode::HLT,
             _ => Opcode::IGL,
         }
     }
@@ -64,7 +87,7 @@ mod test {
     #[test]
     fn test_opcode_hlt() {
         let mut vm = VM::new();
-        vm.program = vec![0, 0, 0, 0];
+        vm.program = vec![5, 0, 0, 0];
         vm.run();
         assert_eq!(vm.program_counter, 1);
     }
@@ -75,5 +98,14 @@ mod test {
         vm.program = vec![255, 0, 0, 0];
         vm.run();
         assert_eq!(vm.program_counter, 1);
+    }
+
+    #[test]
+    fn test_opcode_load() {
+        let mut vm = VM::new();
+        // [opcode, register, operant, operand]
+        vm.program = vec![0, 0, 1, 244];
+        vm.run();
+        assert_eq!(vm.registers[0], 500);
     }
 }
