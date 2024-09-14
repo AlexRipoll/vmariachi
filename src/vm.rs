@@ -44,6 +44,11 @@ impl VM {
                 let second_register = self.registers[self.next_8_bits() as usize];
                 self.registers[self.next_8_bits() as usize] = first_register + second_register;
             }
+            Opcode::SUB => {
+                let first_register = self.registers[self.next_8_bits() as usize];
+                let second_register = self.registers[self.next_8_bits() as usize];
+                self.registers[self.next_8_bits() as usize] = first_register - second_register;
+            }
             Opcode::HLT => {
                 println!("HTL encountered");
                 return None;
@@ -85,6 +90,7 @@ impl From<u8> for Opcode {
         match value {
             0 => Opcode::LOAD,
             1 => Opcode::ADD,
+            2 => Opcode::SUB,
             5 => Opcode::HLT,
             _ => Opcode::IGL,
         }
@@ -135,5 +141,16 @@ mod test {
         vm.program.extend_from_slice(&vec![1, 0, 1, 2]); // ADD $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
         assert_eq!(vm.registers[2], 507);
+    }
+
+    #[test]
+    fn test_opcode_sub() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program.extend_from_slice(&vec![0, 1, 0, 7]); // LOAD $1 #7
+        vm.program.extend_from_slice(&vec![2, 0, 1, 2]); // SUB $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
+        vm.run();
+        assert_eq!(vm.registers[2], 493);
     }
 }

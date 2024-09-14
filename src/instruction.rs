@@ -2,6 +2,7 @@
 pub enum Opcode {
     LOAD, // LOAD
     ADD,  // ADD
+    SUB,  // SUB
     HLT,  // HALT
     IGL,  // ILLEGAL
 }
