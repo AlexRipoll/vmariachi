@@ -1,3 +1,5 @@
+use std::usize;
+
 use crate::instruction::Opcode;
 
 #[derive(Debug)]
@@ -33,9 +35,14 @@ impl VM {
 
         match self.decode_opcode() {
             Opcode::LOAD => {
-                let register = self.next_8_bits() as usize;
+                let register_idx = self.next_8_bits() as usize;
                 let number = self.next_16_bits() as u16;
-                self.registers[register] = number as i32;
+                self.registers[register_idx] = number as i32;
+            }
+            Opcode::ADD => {
+                let first_register = self.registers[self.next_8_bits() as usize];
+                let second_register = self.registers[self.next_8_bits() as usize];
+                self.registers[self.next_8_bits() as usize] = first_register + second_register;
             }
             Opcode::HLT => {
                 println!("HTL encountered");
@@ -77,6 +84,7 @@ impl From<u8> for Opcode {
     fn from(value: u8) -> Self {
         match value {
             0 => Opcode::LOAD,
+            1 => Opcode::ADD,
             5 => Opcode::HLT,
             _ => Opcode::IGL,
         }
@@ -116,5 +124,16 @@ mod test {
         vm.program = vec![0, 0, 1, 244];
         vm.run_once();
         assert_eq!(vm.registers[0], 500);
+    }
+
+    #[test]
+    fn test_opcode_add() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program.extend_from_slice(&vec![0, 1, 0, 7]); // LOAD $1 #7
+        vm.program.extend_from_slice(&vec![1, 0, 1, 2]); // ADD $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
+        vm.run();
+        assert_eq!(vm.registers[2], 507);
     }
 }
