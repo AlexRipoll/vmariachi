@@ -17,28 +17,37 @@ impl VM {
     }
 
     pub fn run(&mut self) {
-        loop {
-            if self.program_counter >= self.program.len() {
-                break;
-            }
-            match self.decode_opcode() {
-                Opcode::LOAD => {
-                    let register = self.next_8_bits() as usize;
-                    let number = self.next_16_bits() as u16;
-                    self.registers[register] = number as i32;
+        while let Some(_) = self.execute_instruction() {
+            self.execute_instruction();
+        }
+    }
 
-                    continue;
-                }
-                Opcode::HLT => {
-                    println!("HTL encountered");
-                    return;
-                }
-                _ => {
-                    println!("unrecognized opcode found! Terminating!");
-                    return;
-                }
+    pub fn run_once(&mut self) {
+        self.execute_instruction();
+    }
+
+    fn execute_instruction(&mut self) -> Option<()> {
+        if self.program_counter >= self.program.len() {
+            return None;
+        }
+
+        match self.decode_opcode() {
+            Opcode::LOAD => {
+                let register = self.next_8_bits() as usize;
+                let number = self.next_16_bits() as u16;
+                self.registers[register] = number as i32;
+            }
+            Opcode::HLT => {
+                println!("HTL encountered");
+                return None;
+            }
+            _ => {
+                println!("unrecognized opcode found! Terminating!");
+                return None;
             }
         }
+
+        Some(())
     }
 
     pub fn decode_opcode(&mut self) -> Opcode {
@@ -88,7 +97,7 @@ mod test {
     fn test_opcode_hlt() {
         let mut vm = VM::new();
         vm.program = vec![5, 0, 0, 0];
-        vm.run();
+        vm.run_once();
         assert_eq!(vm.program_counter, 1);
     }
 
@@ -96,16 +105,16 @@ mod test {
     fn test_opcode_igl() {
         let mut vm = VM::new();
         vm.program = vec![255, 0, 0, 0];
-        vm.run();
+        vm.run_once();
         assert_eq!(vm.program_counter, 1);
     }
 
     #[test]
     fn test_opcode_load() {
         let mut vm = VM::new();
-        // [opcode, register, operant, operand]
+        // [opcode, register, operand, operand]
         vm.program = vec![0, 0, 1, 244];
-        vm.run();
+        vm.run_once();
         assert_eq!(vm.registers[0], 500);
     }
 }
