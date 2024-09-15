@@ -6,7 +6,8 @@ pub enum Opcode {
     MUL,  // MULTIPLY
     DIV,  // DIVIDE
     HLT,  // HALT
-    JMP,  // JUMP
+    JMP,  // JUMP (ABSOLUTE)
+    JMPF, // JUMP FORWARD (RELATIVE)
     IGL,  // ILLEGAL
 }
 
