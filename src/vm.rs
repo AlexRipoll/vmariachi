@@ -75,6 +75,10 @@ impl VM {
                 let jumps = self.registers[self.next_8_bits() as usize];
                 self.program_counter += jumps as usize;
             }
+            Opcode::JMPB => {
+                let jumps = self.registers[self.next_8_bits() as usize];
+                self.program_counter -= jumps as usize;
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -118,6 +122,7 @@ impl From<u8> for Opcode {
             5 => Opcode::HLT,
             6 => Opcode::JMP,
             7 => Opcode::JMPF,
+            8 => Opcode::JMPB,
             _ => Opcode::IGL,
         }
     }
@@ -233,5 +238,15 @@ mod test {
         vm.program = vec![7, 2, 0, 0, 0, 0, 1, 124]; // JMP $1 (JMP to Opcode at program[idx] where idx is the value stored at register 2)
         vm.run_once();
         assert_eq!(vm.program_counter, 4);
+    }
+
+    #[test]
+    fn test_opcode_jmpb() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.registers[2] = 2;
+        vm.program = vec![8, 2, 0, 0, 0, 0, 1, 124]; // JMP $1 (JMP to Opcode at program[idx] where idx is the value stored at register 2)
+        vm.run_once();
+        assert_eq!(vm.program_counter, 0);
     }
 }

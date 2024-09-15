@@ -8,6 +8,7 @@ pub enum Opcode {
     HLT,  // HALT
     JMP,  // JUMP (ABSOLUTE)
     JMPF, // JUMP FORWARD (RELATIVE)
+    JMPB, // JUMP BACKWARD (RELATIVE)
     IGL,  // ILLEGAL
 }
 
