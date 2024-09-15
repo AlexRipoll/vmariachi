@@ -67,6 +67,10 @@ impl VM {
                 println!("HTL encountered");
                 return None;
             }
+            Opcode::JMP => {
+                let target = self.registers[self.next_8_bits() as usize];
+                self.program_counter = target as usize;
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -108,6 +112,7 @@ impl From<u8> for Opcode {
             3 => Opcode::MUL,
             4 => Opcode::DIV,
             5 => Opcode::HLT,
+            6 => Opcode::JMP,
             _ => Opcode::IGL,
         }
     }
@@ -203,5 +208,15 @@ mod test {
         vm.run();
         assert_eq!(vm.registers[2], 83);
         assert_eq!(vm.remainder, 2);
+    }
+
+    #[test]
+    fn test_opcode_jmp() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.registers[2] = 7;
+        vm.program = vec![6, 2, 0, 0]; // JMP $1 (JMP to Opcode at program[idx] where idx is the value stored at register 2)
+        vm.run_once();
+        assert_eq!(vm.program_counter, 7);
     }
 }
