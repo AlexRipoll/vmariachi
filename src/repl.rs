@@ -1,9 +1,10 @@
 use std::{
     io::{self, Write},
+    num::ParseIntError,
     process,
 };
 
-use crate::vm::VM;
+use crate::{instruction, vm::VM};
 
 #[derive(Debug)]
 pub struct REPL {
@@ -55,9 +56,24 @@ impl REPL {
                     self.command_buffer.iter().for_each(|cmd| println!("{cmd}"));
                 }
                 _ => {
-                    println!("invalid command")
+                    match self.parse_hex(&command) {
+                        Ok(instruction) => self.vm.program.extend_from_slice(&instruction),
+                        Err(_) => {
+                            eprintln!(
+                                "Error: Invalid hexadecimal instruction provided. The input must consist of 4 bytes in hexadecimal format, separated by spaces (e.g., '2A 00 02 FA'). Each byte should be a two-digit hexadecimal number."
+                            )
+                        }
+                    }
+                    self.vm.run_once();
                 }
             }
         }
+    }
+
+    fn parse_hex(&mut self, input: &str) -> Result<Vec<u8>, ParseIntError> {
+        input
+            .split(' ')
+            .map(|hex_number| u8::from_str_radix(hex_number, 16))
+            .collect()
     }
 }

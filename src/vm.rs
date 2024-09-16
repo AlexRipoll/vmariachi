@@ -4,8 +4,8 @@ use crate::instruction::Opcode;
 
 #[derive(Debug)]
 pub struct VM {
-    registers: [i32; 32],
-    program: Vec<u8>,
+    pub registers: [i32; 32],
+    pub program: Vec<u8>,
     program_counter: usize,
     remainder: u32,
     equal_flag: bool,
