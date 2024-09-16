@@ -11,6 +11,7 @@ use nom::{
 pub enum Token {
     Opcode { opcode: Opcode },
     Register { idx: u8 },
+    Operand { value: i32 },
 }
 
 fn parse_load(input: &str) -> IResult<&str, Token> {
@@ -30,9 +31,20 @@ fn parse_register(input: &str) -> IResult<&str, Token> {
     Ok((input, Token::Register { idx: reg_num }))
 }
 
+fn parse_operand(input: &str) -> IResult<&str, Token> {
+    let (input, _) = space0(input)?; // Handle leading whitespace
+
+    let (input, value) = preceded(
+        tag("#"),
+        map_res(digit1, |digit_str: &str| digit_str.parse::<i32>()),
+    )(input)?;
+
+    Ok((input, Token::Operand { value }))
+}
+
 #[cfg(test)]
 mod test {
-    use crate::assembler::{parse_load, parse_register, Token};
+    use crate::assembler::{parse_load, parse_operand, parse_register, Token};
 
     #[test]
     fn test_parse_opcode_load() {
@@ -54,6 +66,15 @@ mod test {
         assert_eq!(
             parse_register(input).unwrap(),
             ("", Token::Register { idx: 12 },)
+        );
+    }
+
+    #[test]
+    fn test_parse_operand() {
+        let input = "#10521";
+        assert_eq!(
+            parse_operand(input).unwrap(),
+            ("", Token::Operand { value: 10521 },)
         );
     }
 }
