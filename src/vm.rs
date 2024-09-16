@@ -8,6 +8,7 @@ pub struct VM {
     program: Vec<u8>,
     program_counter: usize,
     remainder: u32,
+    equal_flag: bool,
 }
 
 impl VM {
@@ -17,6 +18,7 @@ impl VM {
             program: Vec::new(),
             program_counter: 0,
             remainder: 0,
+            equal_flag: false,
         }
     }
 
@@ -79,6 +81,16 @@ impl VM {
                 let jumps = self.registers[self.next_8_bits() as usize];
                 self.program_counter -= jumps as usize;
             }
+            Opcode::EQ => {
+                let first_value = self.registers[self.next_8_bits() as usize];
+                let second_value = self.registers[self.next_8_bits() as usize];
+                if first_value == second_value {
+                    self.equal_flag = true;
+                } else {
+                    self.equal_flag = false;
+                }
+                self.next_8_bits();
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -123,6 +135,7 @@ impl From<u8> for Opcode {
             6 => Opcode::JMP,
             7 => Opcode::JMPF,
             8 => Opcode::JMPB,
+            9 => Opcode::EQ,
             _ => Opcode::IGL,
         }
     }
@@ -248,5 +261,27 @@ mod test {
         vm.program = vec![8, 2, 0, 0, 0, 0, 1, 124]; // JMP $1 (JMP to Opcode at program[idx] where idx is the value stored at register 2)
         vm.run_once();
         assert_eq!(vm.program_counter, 0);
+    }
+
+    #[test]
+    fn test_opcode_eq_true() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.registers[0] = 2;
+        vm.registers[1] = 2;
+        vm.program = vec![9, 0, 1, 0]; // EQ $0 $1
+        vm.run_once();
+        assert!(vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_eq_false() {
+        let mut vm = VM::new();
+        // [opcode, register, operand, operand]
+        vm.registers[0] = 2;
+        vm.registers[1] = 5;
+        vm.program = vec![9, 0, 1, 0]; // EQ $0 $1
+        vm.run_once();
+        assert!(!vm.equal_flag);
     }
 }
