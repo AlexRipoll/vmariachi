@@ -16,6 +16,7 @@ pub enum Opcode {
     GTQ,  // GREATER THAN OR EQUAL
     LTQ,  // LESS THAN OR EQUAL
     JEQ,  // JUMP IF EQUAL
+    JNEQ, // JUMP IF NOT EQUAL
     IGL,  // ILLEGAL
 }
 

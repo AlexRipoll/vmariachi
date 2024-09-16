@@ -123,6 +123,12 @@ impl VM {
                     self.program_counter = target as usize;
                 }
             }
+            Opcode::JNEQ => {
+                let target = self.registers[self.next_8_bits() as usize];
+                if !self.equal_flag {
+                    self.program_counter = target as usize;
+                }
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -174,6 +180,7 @@ impl From<u8> for Opcode {
             13 => Opcode::GTQ,
             14 => Opcode::LTQ,
             15 => Opcode::JEQ,
+            16 => Opcode::JNEQ,
             _ => Opcode::IGL,
         }
     }
@@ -447,6 +454,16 @@ mod test {
         vm.registers[2] = 4;
         vm.equal_flag = true;
         vm.program = vec![15, 2, 0, 0]; // JEQ $0
+        vm.run_once();
+        assert_eq!(vm.program_counter, 4);
+    }
+
+    #[test]
+    fn test_opcode_jneq() {
+        let mut vm = VM::new();
+        vm.registers[2] = 4;
+        vm.equal_flag = false;
+        vm.program = vec![16, 2, 0, 0]; // JEQ $0
         vm.run_once();
         assert_eq!(vm.program_counter, 4);
     }
