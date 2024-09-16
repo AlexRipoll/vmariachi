@@ -12,6 +12,7 @@ pub enum Opcode {
     EQ,   // EQUAL
     NEQ,  // NOT EQUAL
     GT,   // GREATER THAN
+    LT,   // LESS THAN
     IGL,  // ILLEGAL
 }
 
