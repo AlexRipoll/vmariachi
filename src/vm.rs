@@ -28,6 +28,14 @@ impl VM {
         }
     }
 
+    pub fn program(&self) -> &Vec<u8> {
+        &self.program
+    }
+
+    pub fn registers(&self) -> &[i32; 32] {
+        &self.registers
+    }
+
     pub fn run_once(&mut self) {
         self.execute_instruction();
     }

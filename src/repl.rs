@@ -35,6 +35,18 @@ impl REPL {
             self.command_buffer.push(command.to_string());
 
             match command {
+                "!program" => {
+                    self.vm
+                        .program()
+                        .iter()
+                        .for_each(|byte| println!("{}", byte));
+
+                    println!("End of program");
+                }
+                "!registers" => {
+                    println!("{:#?}", self.vm.registers());
+                    println!("End of registers");
+                }
                 "!quit" => {
                     println!("My work is done, I quit");
                     process::exit(0);
