@@ -111,6 +111,12 @@ impl VM {
                 self.equal_flag = first_value >= second_value;
                 self.next_8_bits();
             }
+            Opcode::LTQ => {
+                let first_value = self.registers[self.next_8_bits() as usize];
+                let second_value = self.registers[self.next_8_bits() as usize];
+                self.equal_flag = first_value <= second_value;
+                self.next_8_bits();
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -160,6 +166,7 @@ impl From<u8> for Opcode {
             11 => Opcode::GT,
             12 => Opcode::LT,
             13 => Opcode::GTQ,
+            14 => Opcode::LTQ,
             _ => Opcode::IGL,
         }
     }
@@ -393,6 +400,36 @@ mod test {
         vm.registers[0] = 2;
         vm.registers[1] = 4;
         vm.program = vec![13, 0, 1, 0]; // GTQ $0 $1
+        vm.run_once();
+        assert!(!vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_ltq_less_true() {
+        let mut vm = VM::new();
+        vm.registers[0] = 5;
+        vm.registers[1] = 6;
+        vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
+        vm.run_once();
+        assert!(vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_ltq_equal_true() {
+        let mut vm = VM::new();
+        vm.registers[0] = 6;
+        vm.registers[1] = 6;
+        vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
+        vm.run_once();
+        assert!(vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_ltq_false() {
+        let mut vm = VM::new();
+        vm.registers[0] = 4;
+        vm.registers[1] = 2;
+        vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
         vm.run_once();
         assert!(!vm.equal_flag);
     }
