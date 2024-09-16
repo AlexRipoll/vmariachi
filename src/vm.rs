@@ -93,6 +93,12 @@ impl VM {
                 self.equal_flag = first_value != second_value;
                 self.next_8_bits();
             }
+            Opcode::GT => {
+                let first_value = self.registers[self.next_8_bits() as usize];
+                let second_value = self.registers[self.next_8_bits() as usize];
+                self.equal_flag = first_value > second_value;
+                self.next_8_bits();
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -139,6 +145,7 @@ impl From<u8> for Opcode {
             8 => Opcode::JMPB,
             9 => Opcode::EQ,
             10 => Opcode::NEQ,
+            11 => Opcode::GT,
             _ => Opcode::IGL,
         }
     }
@@ -302,6 +309,26 @@ mod test {
         vm.registers[0] = 2;
         vm.registers[1] = 2;
         vm.program = vec![10, 0, 1, 0]; // NEQ $0 $1
+        vm.run_once();
+        assert!(!vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_gt_true() {
+        let mut vm = VM::new();
+        vm.registers[0] = 6;
+        vm.registers[1] = 5;
+        vm.program = vec![11, 0, 1, 0]; // GT $0 $1
+        vm.run_once();
+        assert!(vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_gt_false() {
+        let mut vm = VM::new();
+        vm.registers[0] = 2;
+        vm.registers[1] = 2;
+        vm.program = vec![11, 0, 1, 0]; // GT $0 $1
         vm.run_once();
         assert!(!vm.equal_flag);
     }

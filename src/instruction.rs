@@ -11,6 +11,7 @@ pub enum Opcode {
     JMPB, // JUMP BACKWARD (RELATIVE)
     EQ,   // EQUAL
     NEQ,  // NOT EQUAL
+    GT,   // GREATER THAN
     IGL,  // ILLEGAL
 }
 
