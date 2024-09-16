@@ -84,11 +84,13 @@ impl VM {
             Opcode::EQ => {
                 let first_value = self.registers[self.next_8_bits() as usize];
                 let second_value = self.registers[self.next_8_bits() as usize];
-                if first_value == second_value {
-                    self.equal_flag = true;
-                } else {
-                    self.equal_flag = false;
-                }
+                self.equal_flag = first_value == second_value;
+                self.next_8_bits();
+            }
+            Opcode::NEQ => {
+                let first_value = self.registers[self.next_8_bits() as usize];
+                let second_value = self.registers[self.next_8_bits() as usize];
+                self.equal_flag = first_value != second_value;
                 self.next_8_bits();
             }
             _ => {
@@ -136,6 +138,7 @@ impl From<u8> for Opcode {
             7 => Opcode::JMPF,
             8 => Opcode::JMPB,
             9 => Opcode::EQ,
+            10 => Opcode::NEQ,
             _ => Opcode::IGL,
         }
     }
@@ -266,7 +269,6 @@ mod test {
     #[test]
     fn test_opcode_eq_true() {
         let mut vm = VM::new();
-        // [opcode, register, operand, operand]
         vm.registers[0] = 2;
         vm.registers[1] = 2;
         vm.program = vec![9, 0, 1, 0]; // EQ $0 $1
@@ -277,10 +279,29 @@ mod test {
     #[test]
     fn test_opcode_eq_false() {
         let mut vm = VM::new();
-        // [opcode, register, operand, operand]
         vm.registers[0] = 2;
         vm.registers[1] = 5;
         vm.program = vec![9, 0, 1, 0]; // EQ $0 $1
+        vm.run_once();
+        assert!(!vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_neq_true() {
+        let mut vm = VM::new();
+        vm.registers[0] = 1;
+        vm.registers[1] = 6;
+        vm.program = vec![10, 0, 1, 0]; // NEQ $0 $1
+        vm.run_once();
+        assert!(vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_neq_false() {
+        let mut vm = VM::new();
+        vm.registers[0] = 2;
+        vm.registers[1] = 2;
+        vm.program = vec![10, 0, 1, 0]; // NEQ $0 $1
         vm.run_once();
         assert!(!vm.equal_flag);
     }

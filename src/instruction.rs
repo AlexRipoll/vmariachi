@@ -9,7 +9,8 @@ pub enum Opcode {
     JMP,  // JUMP (ABSOLUTE)
     JMPF, // JUMP FORWARD (RELATIVE)
     JMPB, // JUMP BACKWARD (RELATIVE)
-    EQ,   // EQ
+    EQ,   // EQUAL
+    NEQ,  // NOT EQUAL
     IGL,  // ILLEGAL
 }
 
