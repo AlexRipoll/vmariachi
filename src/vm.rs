@@ -117,6 +117,12 @@ impl VM {
                 self.equal_flag = first_value <= second_value;
                 self.next_8_bits();
             }
+            Opcode::JEQ => {
+                let target = self.registers[self.next_8_bits() as usize];
+                if self.equal_flag {
+                    self.program_counter = target as usize;
+                }
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -167,6 +173,7 @@ impl From<u8> for Opcode {
             12 => Opcode::LT,
             13 => Opcode::GTQ,
             14 => Opcode::LTQ,
+            15 => Opcode::JEQ,
             _ => Opcode::IGL,
         }
     }
@@ -432,5 +439,15 @@ mod test {
         vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
         vm.run_once();
         assert!(!vm.equal_flag);
+    }
+
+    #[test]
+    fn test_opcode_jeq() {
+        let mut vm = VM::new();
+        vm.registers[2] = 4;
+        vm.equal_flag = true;
+        vm.program = vec![15, 2, 0, 0]; // JEQ $0
+        vm.run_once();
+        assert_eq!(vm.program_counter, 4);
     }
 }
