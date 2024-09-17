@@ -3,10 +3,21 @@ use nom::{
     bytes::complete::tag,
     character::complete::{digit1, space0},
     combinator::{map, map_res},
-    sequence::preceded,
-    sequence::tuple,
+    multi::many1,
+    sequence::{preceded, tuple},
     IResult,
 };
+
+#[derive(Debug, PartialEq)]
+pub struct Program {
+    instructions: Vec<AssemblerInstruction>,
+}
+
+pub fn parse_program(input: &str) -> IResult<&str, Program> {
+    let (input, instructions) = many1(parse_instruction)(input)?;
+
+    Ok((input, Program { instructions }))
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -74,7 +85,8 @@ fn parse_operand(input: &str) -> IResult<&str, Token> {
 #[cfg(test)]
 mod test {
     use crate::assembler::{
-        parse_instruction, parse_load, parse_operand, parse_register, AssemblerInstruction, Token,
+        parse_instruction, parse_load, parse_operand, parse_program, parse_register,
+        AssemblerInstruction, Program, Token,
     };
 
     #[test]
@@ -125,6 +137,27 @@ mod test {
                     operand3: None,
                 }
             )
+        );
+    }
+
+    #[test]
+    fn test_parse_program() {
+        let parsed = parse_program("load $0 #100").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                Program {
+                    instructions: vec![AssemblerInstruction {
+                        opcode: Token::Opcode {
+                            opcode: crate::instruction::Opcode::LOAD
+                        },
+                        operand1: Some(Token::Register { idx: 0 }),
+                        operand2: Some(Token::Operand { value: 100 }),
+                        operand3: None,
+                    }]
+                }
+            ),
         );
     }
 }
