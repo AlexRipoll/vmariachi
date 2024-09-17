@@ -13,8 +13,8 @@ pub enum Opcode {
     NEQ,  // NOT EQUAL
     GT,   // GREATER THAN
     LT,   // LESS THAN
-    GTQ,  // GREATER THAN OR EQUAL
-    LTQ,  // LESS THAN OR EQUAL
+    GTE,  // GREATER THAN OR EQUAL
+    LTE,  // LESS THAN OR EQUAL
     JEQ,  // JUMP IF EQUAL
     JNEQ, // JUMP IF NOT EQUAL
     IGL,  // ILLEGAL
@@ -28,6 +28,31 @@ pub struct Instruction {
 impl Instruction {
     pub fn new(opcode: Opcode) -> Self {
         Self { opcode }
+    }
+}
+
+impl From<&str> for Opcode {
+    fn from(v: &str) -> Self {
+        match v {
+            "load" => Opcode::LOAD,
+            "add" => Opcode::ADD,
+            "sub" => Opcode::SUB,
+            "mul" => Opcode::MUL,
+            "div" => Opcode::DIV,
+            "hlt" => Opcode::HLT,
+            "jmp" => Opcode::JMP,
+            "jmpf" => Opcode::JMPF,
+            "jmpb" => Opcode::JMPB,
+            "eq" => Opcode::EQ,
+            "neq" => Opcode::NEQ,
+            "gt" => Opcode::GT,
+            "lt" => Opcode::LT,
+            "gte" => Opcode::GTE,
+            "lte" => Opcode::LTE,
+            "jeq" => Opcode::JEQ,
+            "jneq" => Opcode::JNEQ,
+            _ => Opcode::IGL,
+        }
     }
 }
 

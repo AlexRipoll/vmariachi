@@ -105,13 +105,13 @@ impl VM {
                 self.equal_flag = first_value < second_value;
                 self.next_8_bits();
             }
-            Opcode::GTQ => {
+            Opcode::GTE => {
                 let first_value = self.registers[self.next_8_bits() as usize];
                 let second_value = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = first_value >= second_value;
                 self.next_8_bits();
             }
-            Opcode::LTQ => {
+            Opcode::LTE => {
                 let first_value = self.registers[self.next_8_bits() as usize];
                 let second_value = self.registers[self.next_8_bits() as usize];
                 self.equal_flag = first_value <= second_value;
@@ -189,8 +189,8 @@ impl From<u8> for Opcode {
             10 => Opcode::NEQ,
             11 => Opcode::GT,
             12 => Opcode::LT,
-            13 => Opcode::GTQ,
-            14 => Opcode::LTQ,
+            13 => Opcode::GTE,
+            14 => Opcode::LTE,
             15 => Opcode::JEQ,
             16 => Opcode::JNEQ,
             _ => Opcode::IGL,
@@ -401,61 +401,61 @@ mod test {
     }
 
     #[test]
-    fn test_opcode_gtq_greater_true() {
+    fn test_opcode_gte_greater_true() {
         let mut vm = VM::new();
         vm.registers[0] = 6;
         vm.registers[1] = 5;
-        vm.program = vec![13, 0, 1, 0]; // GTQ $0 $1
+        vm.program = vec![13, 0, 1, 0]; // GTE $0 $1
         vm.run_once();
         assert!(vm.equal_flag);
     }
 
     #[test]
-    fn test_opcode_gtq_equal_true() {
+    fn test_opcode_gte_equal_true() {
         let mut vm = VM::new();
         vm.registers[0] = 6;
         vm.registers[1] = 6;
-        vm.program = vec![13, 0, 1, 0]; // GTQ $0 $1
+        vm.program = vec![13, 0, 1, 0]; // GTE $0 $1
         vm.run_once();
         assert!(vm.equal_flag);
     }
 
     #[test]
-    fn test_opcode_gtq_false() {
+    fn test_opcode_gte_false() {
         let mut vm = VM::new();
         vm.registers[0] = 2;
         vm.registers[1] = 4;
-        vm.program = vec![13, 0, 1, 0]; // GTQ $0 $1
+        vm.program = vec![13, 0, 1, 0]; // GTE $0 $1
         vm.run_once();
         assert!(!vm.equal_flag);
     }
 
     #[test]
-    fn test_opcode_ltq_less_true() {
+    fn test_opcode_lte_less_true() {
         let mut vm = VM::new();
         vm.registers[0] = 5;
         vm.registers[1] = 6;
-        vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
+        vm.program = vec![14, 0, 1, 0]; // LTE $0 $1
         vm.run_once();
         assert!(vm.equal_flag);
     }
 
     #[test]
-    fn test_opcode_ltq_equal_true() {
+    fn test_opcode_lte_equal_true() {
         let mut vm = VM::new();
         vm.registers[0] = 6;
         vm.registers[1] = 6;
-        vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
+        vm.program = vec![14, 0, 1, 0]; // LTE $0 $1
         vm.run_once();
         assert!(vm.equal_flag);
     }
 
     #[test]
-    fn test_opcode_ltq_false() {
+    fn test_opcode_lte_false() {
         let mut vm = VM::new();
         vm.registers[0] = 4;
         vm.registers[1] = 2;
-        vm.program = vec![14, 0, 1, 0]; // LTQ $0 $1
+        vm.program = vec![14, 0, 1, 0]; // LTE $0 $1
         vm.run_once();
         assert!(!vm.equal_flag);
     }
