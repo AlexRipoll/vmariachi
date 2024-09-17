@@ -2,7 +2,7 @@ use std::usize;
 
 use crate::instruction::Opcode;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VM {
     pub registers: [i32; 32],
     pub program: Vec<u8>,
@@ -23,17 +23,9 @@ impl VM {
     }
 
     pub fn run(&mut self) {
-        while let Some(_) = self.execute_instruction() {
+        while self.execute_instruction().is_some() {
             self.execute_instruction();
         }
-    }
-
-    pub fn program(&self) -> &Vec<u8> {
-        &self.program
-    }
-
-    pub fn registers(&self) -> &[i32; 32] {
-        &self.registers
     }
 
     pub fn run_once(&mut self) {
@@ -48,7 +40,7 @@ impl VM {
         match self.decode_opcode() {
             Opcode::LOAD => {
                 let register_idx = self.next_8_bits() as usize;
-                let number = self.next_16_bits() as u16;
+                let number = self.next_16_bits();
                 self.registers[register_idx] = number as i32;
             }
             Opcode::ADD => {
@@ -168,6 +160,18 @@ impl VM {
         operand
     }
 }
+
+// impl Default for VM {
+//     fn default() -> Self {
+//         Self {
+//             registers: [0; 32],
+//             program: Vec::new(),
+//             program_counter: 0,
+//             remainder: 0,
+//             equal_flag: false,
+//         }
+//     }
+// }
 
 impl From<u8> for Opcode {
     fn from(value: u8) -> Self {

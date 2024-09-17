@@ -25,7 +25,7 @@ impl Program {
             .iter()
             .map(|instruction| instruction.to_bytes()) // Convert each instruction to a Result<Vec<u8>, String>
             .collect::<Result<Vec<_>, _>>() // Collect the results, handling any errors
-            .map(|bytes| bytes.into_iter().flatten().collect()) // Fla
+            .map(|bytes| bytes.into_iter().flatten().collect())
     }
 }
 
@@ -128,7 +128,7 @@ impl AssemblerInstruction {
             return Err("Non-opcode found in opcode field".to_string());
         }
 
-        for operand in vec![&self.operand1, &self.operand2, &self.operand3] {
+        for operand in &[&self.operand1, &self.operand2, &self.operand3] {
             let operand_bytes = Self::operand_to_bytes(operand)?;
             bytes.extend_from_slice(&operand_bytes);
         }

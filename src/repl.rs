@@ -4,9 +4,9 @@ use std::{
     process,
 };
 
-use crate::{assembler::Program, instruction, vm::VM};
+use crate::{assembler::Program, vm::VM};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct REPL {
     vm: VM,
     command_buffer: Vec<String>,
@@ -37,15 +37,12 @@ impl REPL {
 
             match command {
                 "!program" => {
-                    self.vm
-                        .program()
-                        .iter()
-                        .for_each(|byte| println!("{}", byte));
+                    self.vm.program.iter().for_each(|byte| println!("{}", byte));
 
                     println!("End of program");
                 }
                 "!registers" => {
-                    println!("{:#?}", self.vm.registers());
+                    println!("{:#?}", self.vm.registers);
                     println!("End of registers");
                 }
                 "!quit" => {
