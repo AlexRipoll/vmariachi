@@ -4,7 +4,7 @@ use std::{
     process,
 };
 
-use crate::{instruction, vm::VM};
+use crate::{assembler::Program, instruction, vm::VM};
 
 #[derive(Debug)]
 pub struct REPL {
@@ -56,14 +56,35 @@ impl REPL {
                     self.command_buffer.iter().for_each(|cmd| println!("{cmd}"));
                 }
                 _ => {
-                    match self.parse_hex(&command) {
-                        Ok(instruction) => self.vm.program.extend_from_slice(&instruction),
-                        Err(_) => {
-                            eprintln!(
-                                "Error: Invalid hexadecimal instruction provided. The input must consist of 4 bytes in hexadecimal format, separated by spaces (e.g., '2A 00 02 FA'). Each byte should be a two-digit hexadecimal number."
-                            )
+                    let (_, program) = match Program::parse(command) {
+                        Ok(n) => n,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            continue;
                         }
-                    }
+                    };
+
+                    let bytes = match program.to_bytes() {
+                        Ok(b) => b,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            continue;
+                        }
+                    };
+
+                    self.vm.program.extend_from_slice(&bytes);
+
+                    // hex instruction
+                    //
+                    // match self.parse_hex(&command) {
+                    //     Ok(instruction) => self.vm.program.extend_from_slice(&instruction),
+                    //     Err(_) => {
+                    //         eprintln!(
+                    //             "Error: Invalid hexadecimal instruction provided. The input must consist of 4 bytes in hexadecimal format, separated by spaces (e.g., '2A 00 02 FA'). Each byte should be a two-digit hexadecimal number."
+                    //         )
+                    //     }
+                    // }
+
                     self.vm.run_once();
                 }
             }
