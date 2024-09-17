@@ -1,6 +1,6 @@
 use crate::instruction::Opcode;
 use nom::{
-    bytes::complete::tag,
+    bytes::complete::{tag, tag_no_case},
     character::complete::{digit1, space0},
     combinator::{map, map_res},
     multi::many1,
@@ -38,7 +38,7 @@ pub enum Token {
 
 impl Token {
     fn parse_load(input: &str) -> IResult<&str, Token> {
-        map(tag("load"), |_| Token::Opcode {
+        map(tag_no_case("load"), |_| Token::Opcode {
             opcode: Opcode::LOAD,
         })(input)
     }
