@@ -13,10 +13,12 @@ pub struct Program {
     instructions: Vec<AssemblerInstruction>,
 }
 
-pub fn parse_program(input: &str) -> IResult<&str, Program> {
-    let (input, instructions) = many1(parse_instruction)(input)?;
+impl Program {
+    pub fn parse(input: &str) -> IResult<&str, Program> {
+        let (input, instructions) = many1(AssemblerInstruction::parse)(input)?;
 
-    Ok((input, Program { instructions }))
+        Ok((input, Program { instructions }))
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -24,6 +26,36 @@ pub enum Token {
     Opcode { opcode: Opcode },
     Register { idx: u8 },
     Operand { value: i32 },
+}
+
+impl Token {
+    fn parse_load(input: &str) -> IResult<&str, Token> {
+        map(tag("load"), |_| Token::Opcode {
+            opcode: Opcode::LOAD,
+        })(input)
+    }
+
+    fn parse_register(input: &str) -> IResult<&str, Token> {
+        let (input, _) = space0(input)?; // Handle leading whitespace
+
+        let (input, reg_num) = preceded(
+            tag("$"),
+            map_res(digit1, |digit_str: &str| digit_str.parse::<u8>()),
+        )(input)?;
+
+        Ok((input, Token::Register { idx: reg_num }))
+    }
+
+    fn parse_operand(input: &str) -> IResult<&str, Token> {
+        let (input, _) = space0(input)?; // Handle leading whitespace
+
+        let (input, value) = preceded(
+            tag("#"),
+            map_res(digit1, |digit_str: &str| digit_str.parse::<i32>()),
+        )(input)?;
+
+        Ok((input, Token::Operand { value }))
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -34,66 +66,37 @@ pub struct AssemblerInstruction {
     operand3: Option<Token>,
 }
 
-pub fn parse_instruction(input: &str) -> IResult<&str, AssemblerInstruction> {
-    let (input, (opcode, _, register, _, operand)) = tuple((
-        parse_load,     // Parse the opcode
-        space0,         // Handle optional spaces
-        parse_register, // Parse the register
-        space0,         // Handle optional spaces
-        parse_operand,  // Parse the integer operand
-    ))(input)?;
+impl AssemblerInstruction {
+    pub fn parse(input: &str) -> IResult<&str, AssemblerInstruction> {
+        let (input, (opcode, _, register, _, operand)) = tuple((
+            Token::parse_load,     // Parse the opcode
+            space0,                // Handle optional spaces
+            Token::parse_register, // Parse the register
+            space0,                // Handle optional spaces
+            Token::parse_operand,  // Parse the integer operand
+        ))(input)?;
 
-    Ok((
-        input,
-        AssemblerInstruction {
-            opcode,
-            operand1: Some(register),
-            operand2: Some(operand),
-            operand3: None, // No third operand in this form
-        },
-    ))
-}
-
-fn parse_load(input: &str) -> IResult<&str, Token> {
-    map(tag("load"), |_| Token::Opcode {
-        opcode: Opcode::LOAD,
-    })(input)
-}
-
-fn parse_register(input: &str) -> IResult<&str, Token> {
-    let (input, _) = space0(input)?; // Handle leading whitespace
-
-    let (input, reg_num) = preceded(
-        tag("$"),
-        map_res(digit1, |digit_str: &str| digit_str.parse::<u8>()),
-    )(input)?;
-
-    Ok((input, Token::Register { idx: reg_num }))
-}
-
-fn parse_operand(input: &str) -> IResult<&str, Token> {
-    let (input, _) = space0(input)?; // Handle leading whitespace
-
-    let (input, value) = preceded(
-        tag("#"),
-        map_res(digit1, |digit_str: &str| digit_str.parse::<i32>()),
-    )(input)?;
-
-    Ok((input, Token::Operand { value }))
+        Ok((
+            input,
+            AssemblerInstruction {
+                opcode,
+                operand1: Some(register),
+                operand2: Some(operand),
+                operand3: None, // No third operand in this form
+            },
+        ))
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::assembler::{
-        parse_instruction, parse_load, parse_operand, parse_program, parse_register,
-        AssemblerInstruction, Program, Token,
-    };
+    use crate::assembler::{AssemblerInstruction, Program, Token};
 
     #[test]
     fn test_parse_opcode_load() {
         let input = "load";
         assert_eq!(
-            parse_load(input).unwrap(),
+            Token::parse_load(input).unwrap(),
             (
                 "",
                 Token::Opcode {
@@ -107,7 +110,7 @@ mod test {
     fn test_parse_register() {
         let input = "$12";
         assert_eq!(
-            parse_register(input).unwrap(),
+            Token::parse_register(input).unwrap(),
             ("", Token::Register { idx: 12 },)
         );
     }
@@ -116,14 +119,14 @@ mod test {
     fn test_parse_operand() {
         let input = "#10521";
         assert_eq!(
-            parse_operand(input).unwrap(),
+            Token::parse_operand(input).unwrap(),
             ("", Token::Operand { value: 10521 },)
         );
     }
 
     #[test]
     fn test_parse_instruction() {
-        let parsed = parse_instruction("load $0 #100").unwrap();
+        let parsed = AssemblerInstruction::parse("load $0 #100").unwrap();
         assert_eq!(
             parsed,
             (
@@ -142,7 +145,7 @@ mod test {
 
     #[test]
     fn test_parse_program() {
-        let parsed = parse_program("load $0 #100").unwrap();
+        let parsed = Program::parse("load $0 #100").unwrap();
         assert_eq!(
             parsed,
             (
