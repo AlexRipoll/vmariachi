@@ -19,6 +19,14 @@ impl Program {
 
         Ok((input, Program { instructions }))
     }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
+        self.instructions
+            .iter()
+            .map(|instruction| instruction.to_bytes()) // Convert each instruction to a Result<Vec<u8>, String>
+            .collect::<Result<Vec<_>, _>>() // Collect the results, handling any errors
+            .map(|bytes| bytes.into_iter().flatten().collect()) // Fla
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -85,6 +93,47 @@ impl AssemblerInstruction {
                 operand3: None, // No third operand in this form
             },
         ))
+    }
+
+    fn operand_to_bytes(token: &Option<Token>) -> Result<Vec<u8>, String> {
+        let mut bytes = Vec::new();
+
+        match token {
+            Some(Token::Register { idx: n }) => {
+                bytes.push(*n);
+            }
+            Some(Token::Operand { value: n }) => {
+                let val = *n as u16;
+                let second_byte = val as u8;
+                let first_byte = (val >> 8) as u8;
+                bytes.push(first_byte);
+                bytes.push(second_byte);
+            }
+            None => {}
+            _ => {
+                return Err("Opcode found in operand field".to_string());
+            }
+        }
+
+        Ok(bytes)
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
+        let mut bytes: Vec<u8> = Vec::new();
+
+        if let Token::Opcode { opcode: n } = &self.opcode {
+            bytes.push(n.clone() as u8);
+        } else {
+            // TODO: handle error
+            return Err("Non-opcode found in opcode field".to_string());
+        }
+
+        for operand in vec![&self.operand1, &self.operand2, &self.operand3] {
+            let operand_bytes = Self::operand_to_bytes(operand)?;
+            bytes.extend_from_slice(&operand_bytes);
+        }
+
+        Ok(bytes)
     }
 }
 
@@ -162,5 +211,12 @@ mod test {
                 }
             ),
         );
+    }
+
+    #[test]
+    fn test_parse_program_to_bytes() {
+        let (_, program) = Program::parse("load $0 #100").unwrap();
+
+        assert_eq!(program.to_bytes().unwrap(), vec![0, 0, 0, 100]);
     }
 }
