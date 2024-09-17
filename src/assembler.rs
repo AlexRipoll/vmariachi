@@ -1,7 +1,7 @@
 use crate::instruction::Opcode;
 use nom::{
     bytes::complete::{tag, tag_no_case},
-    character::complete::{digit1, space0},
+    character::complete::{alpha1, digit1, space0},
     combinator::{map, map_res},
     multi::many1,
     sequence::{preceded, tuple},
@@ -37,9 +37,12 @@ pub enum Token {
 }
 
 impl Token {
-    fn parse_load(input: &str) -> IResult<&str, Token> {
-        map(tag_no_case("load"), |_| Token::Opcode {
-            opcode: Opcode::LOAD,
+    fn parse_opcode(input: &str) -> IResult<&str, Token> {
+        map_res(alpha1, |opcode_str: &str| {
+            let lower_opcode = opcode_str.to_lowercase();
+            Ok(Token::Opcode {
+                opcode: Opcode::from(lower_opcode.as_str()),
+            }) as Result<Token, ()>
         })(input)
     }
 
@@ -77,7 +80,7 @@ pub struct AssemblerInstruction {
 impl AssemblerInstruction {
     pub fn parse(input: &str) -> IResult<&str, AssemblerInstruction> {
         let (input, (opcode, _, register, _, operand)) = tuple((
-            Token::parse_load,     // Parse the opcode
+            Token::parse_opcode,   // Parse the opcode
             space0,                // Handle optional spaces
             Token::parse_register, // Parse the register
             space0,                // Handle optional spaces
@@ -145,11 +148,39 @@ mod test {
     fn test_parse_opcode_load() {
         let input = "load";
         assert_eq!(
-            Token::parse_load(input).unwrap(),
+            Token::parse_opcode(input).unwrap(),
             (
                 "",
                 Token::Opcode {
                     opcode: crate::instruction::Opcode::LOAD,
+                },
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_opcode_jmp() {
+        let input = "jmp";
+        assert_eq!(
+            Token::parse_opcode(input).unwrap(),
+            (
+                "",
+                Token::Opcode {
+                    opcode: crate::instruction::Opcode::JMP,
+                },
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_illegal_opcode() {
+        let input = "alod";
+        assert_eq!(
+            Token::parse_opcode(input).unwrap(),
+            (
+                "",
+                Token::Opcode {
+                    opcode: crate::instruction::Opcode::IGL,
                 },
             )
         );

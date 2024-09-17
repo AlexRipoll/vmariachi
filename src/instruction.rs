@@ -66,4 +66,14 @@ mod test {
         let instruction = Instruction::new(opcode);
         assert_eq!(instruction.opcode, Opcode::HLT);
     }
+
+    #[test]
+    fn test_opcode_from_str() {
+        assert_eq!(Opcode::from("hlt"), Opcode::HLT);
+    }
+
+    #[test]
+    fn test_illegal_opcode_from_str() {
+        assert_eq!(Opcode::from("NNN"), Opcode::IGL);
+    }
 }
