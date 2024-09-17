@@ -1,9 +1,9 @@
 use crate::instruction::Opcode;
 use nom::{
     branch::alt,
-    bytes::complete::{tag, tag_no_case},
+    bytes::complete::tag,
     character::complete::{alpha1, digit1, multispace0, space0},
-    combinator::{map, map_res, opt},
+    combinator::{map_res, opt},
     multi::many1,
     sequence::{preceded, tuple},
     IResult,
@@ -83,12 +83,13 @@ impl AssemblerInstruction {
         // Use the `alt` combinator to try parsing parse_complete or opcode_only (set more
         // restrictive first)
         alt((
-            AssemblerInstruction::parse_complete,
-            AssemblerInstruction::parse_opcode_only,
+            AssemblerInstruction::parse_opcode_with_register_and_operand,
+            AssemblerInstruction::parse_opcode_with_optional_registers,
+            AssemblerInstruction::parse_opcode,
         ))(input)
     }
 
-    fn parse_opcode_only(input: &str) -> IResult<&str, AssemblerInstruction> {
+    fn parse_opcode(input: &str) -> IResult<&str, AssemblerInstruction> {
         let (input, (opcode, _)) = tuple((
             Token::parse_opcode, // Parse the opcode (function that parses the opcode)
             opt(multispace0),    // Optional whitespace
@@ -105,7 +106,29 @@ impl AssemblerInstruction {
         ))
     }
 
-    fn parse_complete(input: &str) -> IResult<&str, AssemblerInstruction> {
+    fn parse_opcode_with_optional_registers(input: &str) -> IResult<&str, AssemblerInstruction> {
+        let (input, (opcode, _, register1, _, register2, _, register3)) = tuple((
+            Token::parse_opcode,   // Parse the opcode
+            space0,                // Handle optional spaces
+            Token::parse_register, // Parse the register
+            space0,                // Handle optional spaces
+            opt(Token::parse_register),
+            space0, // Handle optional spaces
+            opt(Token::parse_register),
+        ))(input)?;
+
+        Ok((
+            input,
+            AssemblerInstruction {
+                opcode,
+                operand1: Some(register1),
+                operand2: register2,
+                operand3: register3,
+            },
+        ))
+    }
+
+    fn parse_opcode_with_register_and_operand(input: &str) -> IResult<&str, AssemblerInstruction> {
         let (input, (opcode, _, register, _, operand)) = tuple((
             Token::parse_opcode,   // Parse the opcode
             space0,                // Handle optional spaces
@@ -154,7 +177,6 @@ impl AssemblerInstruction {
         if let Token::Opcode { opcode: n } = &self.opcode {
             bytes.push(n.clone() as u8);
         } else {
-            // TODO: handle error
             return Err("Non-opcode found in opcode field".to_string());
         }
 
@@ -233,7 +255,8 @@ mod test {
 
     #[test]
     fn test_parse_instruction() {
-        let parsed = AssemblerInstruction::parse_complete("load $0 #100").unwrap();
+        let parsed =
+            AssemblerInstruction::parse_opcode_with_register_and_operand("load $0 #100").unwrap();
         assert_eq!(
             parsed,
             (
@@ -252,7 +275,7 @@ mod test {
 
     #[test]
     fn test_parse_instruction_opcode_only() {
-        let parsed = AssemblerInstruction::parse_opcode_only("hlt").unwrap();
+        let parsed = AssemblerInstruction::parse_opcode("hlt").unwrap();
         assert_eq!(
             parsed,
             (
@@ -264,6 +287,65 @@ mod test {
                     operand1: None,
                     operand2: None,
                     operand3: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_with_one_registers() {
+        let parsed = AssemblerInstruction::parse_opcode_with_optional_registers("JMP $0").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: Token::Opcode {
+                        opcode: crate::instruction::Opcode::JMP
+                    },
+                    operand1: Some(Token::Register { idx: 0 }),
+                    operand2: None,
+                    operand3: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_with_two_registers() {
+        let parsed =
+            AssemblerInstruction::parse_opcode_with_optional_registers("LT $0 $2").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: Token::Opcode {
+                        opcode: crate::instruction::Opcode::LT
+                    },
+                    operand1: Some(Token::Register { idx: 0 }),
+                    operand2: Some(Token::Register { idx: 2 }),
+                    operand3: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_three_registers() {
+        let parsed =
+            AssemblerInstruction::parse_opcode_with_optional_registers("ADD $0 $2 $3").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: Token::Opcode {
+                        opcode: crate::instruction::Opcode::ADD
+                    },
+                    operand1: Some(Token::Register { idx: 0 }),
+                    operand2: Some(Token::Register { idx: 2 }),
+                    operand3: Some(Token::Register { idx: 3 }),
                 }
             )
         );
