@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric1, digit1, multispace0, space0},
-    combinator::{map_res, opt},
+    combinator::{map, map_res, opt},
     multi::many1,
     sequence::{preceded, tuple},
     IResult,
@@ -47,6 +47,13 @@ impl Token {
             Ok(Token::Opcode {
                 opcode: Opcode::from(lower_opcode.as_str()),
             }) as Result<Token, ()>
+        })(input)
+    }
+
+    fn parse_directive(input: &str) -> IResult<&str, Token> {
+        // Parse the directive that starts with a dot `.` followed by an alphanumeric name
+        map(preceded(tag("."), alpha1), |name: &str| Token::Directive {
+            name: name.to_string(),
         })(input)
     }
 
@@ -102,15 +109,14 @@ impl AssemblerInstruction {
     pub fn parse(input: &str) -> IResult<&str, AssemblerInstruction> {
         // Use the `alt` combinator to try parsing parse_complete or opcode_only (set more
         // restrictive first)
-        alt((AssemblerInstruction::parse_opcode_with_optional_registers,))(input)
+        alt((
+            AssemblerInstruction::parse_opcode,
+            AssemblerInstruction::parse_directive,
+        ))(input)
     }
 
-    fn parse_operand(input: &str) -> IResult<&str, Token> {
-        alt((Token::parse_operand, Token::parse_register))(input)
-    }
-
-    fn parse_opcode_with_optional_registers(input: &str) -> IResult<&str, AssemblerInstruction> {
-        let (input, (l, o, o1, o2, o3)) = tuple((
+    fn parse_opcode(input: &str) -> IResult<&str, AssemblerInstruction> {
+        let (input, (label, opcode, operand1, operand2, operand3)) = tuple((
             opt(Token::parse_label_declaration), // Optional label declaration
             Token::parse_opcode,                 // Parse the opcode
             opt(AssemblerInstruction::parse_operand), // Optional operand1
@@ -121,14 +127,40 @@ impl AssemblerInstruction {
         Ok((
             input,
             AssemblerInstruction {
-                opcode: Some(o),
-                label: l,
+                opcode: Some(opcode),
+                label,
                 directive: None,
-                operand1: o1,
-                operand2: o2,
-                operand3: o3,
+                operand1,
+                operand2,
+                operand3,
             },
         ))
+    }
+
+    fn parse_directive(input: &str) -> IResult<&str, AssemblerInstruction> {
+        let (input, (_, directive, operand1, operand2, operand3)) = tuple((
+            opt(Token::parse_label_declaration), // Optional label declaration
+            Token::parse_directive,              // Parse the directive
+            opt(AssemblerInstruction::parse_operand), // Optional operand1
+            opt(AssemblerInstruction::parse_operand), // Optional operand2
+            opt(AssemblerInstruction::parse_operand), // Optional operand3
+        ))(input)?;
+
+        Ok((
+            input,
+            AssemblerInstruction {
+                opcode: None,
+                directive: Some(directive),
+                label: None,
+                operand1,
+                operand2,
+                operand3,
+            },
+        ))
+    }
+
+    fn parse_operand(input: &str) -> IResult<&str, Token> {
+        alt((Token::parse_operand, Token::parse_register))(input)
     }
 
     fn operand_to_bytes(token: &Option<Token>) -> Result<Vec<u8>, String> {
@@ -223,6 +255,20 @@ mod test {
     }
 
     #[test]
+    fn test_parse_directive() {
+        let input = ".data";
+        assert_eq!(
+            Token::parse_directive(input).unwrap(),
+            (
+                "",
+                Token::Directive {
+                    name: "data".to_string()
+                }
+            )
+        );
+    }
+
+    #[test]
     fn test_parse_register() {
         let input = "$12";
         assert_eq!(
@@ -242,8 +288,7 @@ mod test {
 
     #[test]
     fn test_parse_instruction() {
-        let parsed =
-            AssemblerInstruction::parse_opcode_with_optional_registers("load $0 #100").unwrap();
+        let parsed = AssemblerInstruction::parse_opcode("load $0 #100").unwrap();
         assert_eq!(
             parsed,
             (
@@ -264,7 +309,7 @@ mod test {
 
     #[test]
     fn test_parse_instruction_with_one_registers() {
-        let parsed = AssemblerInstruction::parse_opcode_with_optional_registers("JMP $0").unwrap();
+        let parsed = AssemblerInstruction::parse_opcode("JMP $0").unwrap();
         assert_eq!(
             parsed,
             (
@@ -285,8 +330,7 @@ mod test {
 
     #[test]
     fn test_parse_instruction_with_two_registers() {
-        let parsed =
-            AssemblerInstruction::parse_opcode_with_optional_registers("LT $0 $2").unwrap();
+        let parsed = AssemblerInstruction::parse_opcode("LT $0 $2").unwrap();
         assert_eq!(
             parsed,
             (
@@ -307,8 +351,7 @@ mod test {
 
     #[test]
     fn test_parse_instruction_three_registers() {
-        let parsed =
-            AssemblerInstruction::parse_opcode_with_optional_registers("ADD $0 $2 $3").unwrap();
+        let parsed = AssemblerInstruction::parse_opcode("ADD $0 $2 $3").unwrap();
         assert_eq!(
             parsed,
             (
@@ -322,6 +365,90 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 2 }),
                     operand3: Some(Token::Register { idx: 3 }),
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_with_directive_and_no_operands() {
+        let parsed = AssemblerInstruction::parse_directive(".data").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: None,
+                    label: None,
+                    directive: Some(Token::Directive {
+                        name: "data".to_string()
+                    }),
+                    operand1: None,
+                    operand2: None,
+                    operand3: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_with_directive_and_one_registers() {
+        let parsed = AssemblerInstruction::parse_directive(".data $0").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: None,
+                    label: None,
+                    directive: Some(Token::Directive {
+                        name: "data".to_string()
+                    }),
+                    operand1: Some(Token::Register { idx: 0 }),
+                    operand2: None,
+                    operand3: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_with_directive_and_two_registers() {
+        let parsed = AssemblerInstruction::parse_directive(".data $0 $1").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: None,
+                    label: None,
+                    directive: Some(Token::Directive {
+                        name: "data".to_string()
+                    }),
+                    operand1: Some(Token::Register { idx: 0 }),
+                    operand2: Some(Token::Register { idx: 1 }),
+                    operand3: None,
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_parse_instruction_with_directive_and_three_registers() {
+        let parsed = AssemblerInstruction::parse_directive(".data $0 $1 $2").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: None,
+                    label: None,
+                    directive: Some(Token::Directive {
+                        name: "data".to_string()
+                    }),
+                    operand1: Some(Token::Register { idx: 0 }),
+                    operand2: Some(Token::Register { idx: 1 }),
+                    operand3: Some(Token::Register { idx: 2 }),
                 }
             )
         );
@@ -366,6 +493,52 @@ mod test {
                         directive: None,
                         operand1: None,
                         operand2: None,
+                        operand3: None,
+                    }]
+                }
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parse_program_directive_only_instruction() {
+        let parsed = Program::parse(".data").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                Program {
+                    instructions: vec![AssemblerInstruction {
+                        opcode: None,
+                        label: None,
+                        directive: Some(Token::Directive {
+                            name: "data".to_string()
+                        }),
+                        operand1: None,
+                        operand2: None,
+                        operand3: None,
+                    }]
+                }
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parse_program_directive_and_operands_instruction() {
+        let parsed = Program::parse(".data $0 $1").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                Program {
+                    instructions: vec![AssemblerInstruction {
+                        opcode: None,
+                        label: None,
+                        directive: Some(Token::Directive {
+                            name: "data".to_string()
+                        }),
+                        operand1: Some(Token::Register { idx: 0 }),
+                        operand2: Some(Token::Register { idx: 1 }),
                         operand3: None,
                     }]
                 }
