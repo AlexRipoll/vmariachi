@@ -185,6 +185,10 @@ impl AssemblerInstruction {
             bytes.extend_from_slice(&operand_bytes);
         }
 
+        while bytes.len() < 4 {
+            bytes.push(0);
+        }
+
         Ok(bytes)
     }
 }
@@ -398,5 +402,19 @@ mod test {
         let (_, program) = Program::parse("load $0 #100").unwrap();
 
         assert_eq!(program.to_bytes().unwrap(), vec![0, 0, 0, 100]);
+    }
+
+    #[test]
+    fn test_parse_program_to_bytes_jmp() {
+        let (_, program) = Program::parse("JMP $1").unwrap();
+
+        assert_eq!(program.to_bytes().unwrap(), vec![6, 1, 0, 0]);
+    }
+
+    #[test]
+    fn test_parse_program_to_bytes_add() {
+        let (_, program) = Program::parse("ADD $0 $3 $1").unwrap();
+
+        assert_eq!(program.to_bytes().unwrap(), vec![1, 0, 3, 1]);
     }
 }
