@@ -1,6 +1,8 @@
 use std::{
-    io::{self, Write},
+    fs::File,
+    io::{self, Read, Write},
     num::ParseIntError,
+    path::Path,
     process,
 };
 
@@ -45,12 +47,47 @@ impl REPL {
                     println!("{:#?}", self.vm.registers);
                     println!("End of registers");
                 }
+                "!load_file" => {
+                    print!("Enter the path of the file: ");
+                    io::stdout().flush().expect("Unable to flush to stdout");
+
+                    let mut tmp = String::new();
+                    io::stdin()
+                        .read_line(&mut tmp)
+                        .expect("Unable to read user input");
+
+                    let mut f = File::open(Path::new(tmp.trim())).expect("Unable to open file");
+                    let mut content = String::new();
+                    f.read_to_string(&mut content).expect("Unable to read file");
+
+                    let (_, program) = match Program::parse(&content) {
+                        Ok(n) => n,
+                        Err(e) => {
+                            eprintln!("Unable to parse input: {}", e);
+                            continue;
+                        }
+                    };
+
+                    let bytes = match program.to_bytes() {
+                        Ok(b) => b,
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            continue;
+                        }
+                    };
+                    println!("{:?}", bytes);
+
+                    self.vm.program.extend_from_slice(&bytes);
+                }
                 "!quit" => {
                     println!("My work is done, I quit");
                     process::exit(0);
                 }
                 "!history" => {
                     self.command_buffer.iter().for_each(|cmd| println!("{cmd}"));
+                }
+                "!clear" => {
+                    self.vm.program.clear();
                 }
                 _ => {
                     let (_, program) = match Program::parse(command) {
