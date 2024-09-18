@@ -136,6 +136,14 @@ impl VM {
                 let bytes = self.registers[register];
                 self.heap.resize(self.heap.len() + bytes as usize, 0);
             }
+            Opcode::INC => {
+                let register = self.next_8_bits() as usize;
+                self.registers[register] += 1;
+            }
+            Opcode::DEC => {
+                let register = self.next_8_bits() as usize;
+                self.registers[register] -= 1;
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -189,6 +197,8 @@ impl From<u8> for Opcode {
             15 => Opcode::JEQ,
             16 => Opcode::JNEQ,
             17 => Opcode::ALOC,
+            18 => Opcode::INC,
+            19 => Opcode::DEC,
             _ => Opcode::IGL,
         }
     }
@@ -493,5 +503,23 @@ mod test {
         vm.program = vec![17, 0, 0, 0]; // ALOC $0
         vm.run_once();
         assert_eq!(vm.heap.len(), 1032);
+    }
+
+    #[test]
+    fn test_opcode_inc() {
+        let mut vm = VM::new();
+        vm.registers[0] = 1024;
+        vm.program = vec![18, 0, 0, 0]; // INC $0
+        vm.run_once();
+        assert_eq!(vm.registers[0], 1025);
+    }
+
+    #[test]
+    fn test_opcode_dec() {
+        let mut vm = VM::new();
+        vm.registers[0] = 1024;
+        vm.program = vec![19, 0, 0, 0]; // DEC $0
+        vm.run_once();
+        assert_eq!(vm.registers[0], 1023);
     }
 }

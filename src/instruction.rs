@@ -18,6 +18,8 @@ pub enum Opcode {
     JEQ,  // JUMP IF EQUAL
     JNEQ, // JUMP IF NOT EQUAL
     ALOC, // ALLOCATE MEMORY ON THE HEAP
+    INC,  // INCREMENT VALUE IN REGISTER
+    DEC,  // DECREMENT VALUE IN REGISTER
     IGL,  // ILLEGAL
 }
 
@@ -53,6 +55,8 @@ impl From<&str> for Opcode {
             "jeq" => Opcode::JEQ,
             "jneq" => Opcode::JNEQ,
             "aloc" => Opcode::ALOC,
+            "inc" => Opcode::INC,
+            "dec" => Opcode::DEC,
             _ => Opcode::IGL,
         }
     }
