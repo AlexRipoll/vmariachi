@@ -7,6 +7,7 @@ pub struct VM {
     pub registers: [i32; 32],
     pub program: Vec<u8>,
     program_counter: usize,
+    heap: Vec<u8>,
     remainder: u32,
     equal_flag: bool,
 }
@@ -17,6 +18,7 @@ impl VM {
             registers: [0; 32],
             program: Vec::new(),
             program_counter: 0,
+            heap: Vec::new(),
             remainder: 0,
             equal_flag: false,
         }
@@ -129,6 +131,11 @@ impl VM {
                     self.program_counter = target as usize;
                 }
             }
+            Opcode::ALOC => {
+                let register = self.next_8_bits() as usize;
+                let bytes = self.registers[register];
+                self.heap.resize(self.heap.len() + bytes as usize, 0);
+            }
             _ => {
                 println!("unrecognized opcode found! Terminating!");
                 return None;
@@ -161,18 +168,6 @@ impl VM {
     }
 }
 
-// impl Default for VM {
-//     fn default() -> Self {
-//         Self {
-//             registers: [0; 32],
-//             program: Vec::new(),
-//             program_counter: 0,
-//             remainder: 0,
-//             equal_flag: false,
-//         }
-//     }
-// }
-
 impl From<u8> for Opcode {
     fn from(value: u8) -> Self {
         match value {
@@ -193,6 +188,7 @@ impl From<u8> for Opcode {
             14 => Opcode::LTE,
             15 => Opcode::JEQ,
             16 => Opcode::JNEQ,
+            17 => Opcode::ALOC,
             _ => Opcode::IGL,
         }
     }
@@ -478,5 +474,24 @@ mod test {
         vm.program = vec![16, 2, 0, 0]; // JEQ $0
         vm.run_once();
         assert_eq!(vm.program_counter, 4);
+    }
+
+    #[test]
+    fn test_opcode_aloc_on_empty_heap() {
+        let mut vm = VM::new();
+        vm.registers[0] = 1024;
+        vm.program = vec![17, 0, 0, 0]; // ALOC $0
+        vm.run_once();
+        assert_eq!(vm.heap.len(), 1024);
+    }
+
+    #[test]
+    fn test_opcode_aloc_extend_heap() {
+        let mut vm = VM::new();
+        vm.heap.extend_from_slice(&[0u8; 8]);
+        vm.registers[0] = 1024;
+        vm.program = vec![17, 0, 0, 0]; // ALOC $0
+        vm.run_once();
+        assert_eq!(vm.heap.len(), 1032);
     }
 }

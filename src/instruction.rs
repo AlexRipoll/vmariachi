@@ -17,6 +17,7 @@ pub enum Opcode {
     LTE,  // LESS THAN OR EQUAL
     JEQ,  // JUMP IF EQUAL
     JNEQ, // JUMP IF NOT EQUAL
+    ALOC, // ALLOCATE MEMORY ON THE HEAP
     IGL,  // ILLEGAL
 }
 
@@ -51,6 +52,7 @@ impl From<&str> for Opcode {
             "lte" => Opcode::LTE,
             "jeq" => Opcode::JEQ,
             "jneq" => Opcode::JNEQ,
+            "aloc" => Opcode::ALOC,
             _ => Opcode::IGL,
         }
     }
