@@ -2,7 +2,7 @@ use crate::instruction::Opcode;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, digit1, multispace0, space0},
+    character::complete::{alpha1, alphanumeric1, digit1, multispace0, space0},
     combinator::{map_res, opt},
     multi::many1,
     sequence::{preceded, tuple},
@@ -35,6 +35,9 @@ pub enum Token {
     Opcode { opcode: Opcode },
     Register { idx: u8 },
     Operand { value: i32 },
+    LabelDeclaration { name: String },
+    LabelUsage { name: String },
+    Directive { name: String },
 }
 
 impl Token {
@@ -68,11 +71,28 @@ impl Token {
 
         Ok((input, Token::Operand { value }))
     }
+
+    fn parse_label_declaration(input: &str) -> IResult<&str, Token> {
+        let (input, (name, _, _)) = tuple((
+            alphanumeric1, // Parse the label name (alphanumeric string)
+            tag(":"),      // Parse the colon `:`
+            opt(space0),   // Optionally handle whitespace after the colon
+        ))(input)?;
+
+        Ok((
+            input,
+            Token::LabelDeclaration {
+                name: name.to_string(),
+            },
+        ))
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct AssemblerInstruction {
-    opcode: Token,
+    opcode: Option<Token>,
+    label: Option<Token>,
+    directive: Option<Token>,
     operand1: Option<Token>,
     operand2: Option<Token>,
     operand3: Option<Token>,
@@ -82,68 +102,31 @@ impl AssemblerInstruction {
     pub fn parse(input: &str) -> IResult<&str, AssemblerInstruction> {
         // Use the `alt` combinator to try parsing parse_complete or opcode_only (set more
         // restrictive first)
-        alt((
-            AssemblerInstruction::parse_opcode_with_register_and_operand,
-            AssemblerInstruction::parse_opcode_with_optional_registers,
-            AssemblerInstruction::parse_opcode,
-        ))(input)
+        alt((AssemblerInstruction::parse_opcode_with_optional_registers,))(input)
     }
 
-    fn parse_opcode(input: &str) -> IResult<&str, AssemblerInstruction> {
-        let (input, (opcode, _)) = tuple((
-            Token::parse_opcode, // Parse the opcode (function that parses the opcode)
-            opt(multispace0),    // Optional whitespace
-        ))(input)?;
-
-        Ok((
-            input,
-            AssemblerInstruction {
-                opcode,
-                operand1: None,
-                operand2: None,
-                operand3: None,
-            },
-        ))
+    fn parse_operand(input: &str) -> IResult<&str, Token> {
+        alt((Token::parse_operand, Token::parse_register))(input)
     }
 
     fn parse_opcode_with_optional_registers(input: &str) -> IResult<&str, AssemblerInstruction> {
-        let (input, (opcode, _, register1, _, register2, _, register3)) = tuple((
-            Token::parse_opcode,   // Parse the opcode
-            space0,                // Handle optional spaces
-            Token::parse_register, // Parse the register
-            space0,                // Handle optional spaces
-            opt(Token::parse_register),
-            space0, // Handle optional spaces
-            opt(Token::parse_register),
+        let (input, (l, o, o1, o2, o3)) = tuple((
+            opt(Token::parse_label_declaration), // Optional label declaration
+            Token::parse_opcode,                 // Parse the opcode
+            opt(AssemblerInstruction::parse_operand), // Optional operand1
+            opt(AssemblerInstruction::parse_operand), // Optional operand2
+            opt(AssemblerInstruction::parse_operand), // Optional operand3
         ))(input)?;
 
         Ok((
             input,
             AssemblerInstruction {
-                opcode,
-                operand1: Some(register1),
-                operand2: register2,
-                operand3: register3,
-            },
-        ))
-    }
-
-    fn parse_opcode_with_register_and_operand(input: &str) -> IResult<&str, AssemblerInstruction> {
-        let (input, (opcode, _, register, _, operand)) = tuple((
-            Token::parse_opcode,   // Parse the opcode
-            space0,                // Handle optional spaces
-            Token::parse_register, // Parse the register
-            space0,                // Handle optional spaces
-            Token::parse_operand,  // Parse the integer operand
-        ))(input)?;
-
-        Ok((
-            input,
-            AssemblerInstruction {
-                opcode,
-                operand1: Some(register),
-                operand2: Some(operand),
-                operand3: None, // No third operand in this form
+                opcode: Some(o),
+                label: l,
+                directive: None,
+                operand1: o1,
+                operand2: o2,
+                operand3: o3,
             },
         ))
     }
@@ -174,7 +157,7 @@ impl AssemblerInstruction {
     pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
         let mut bytes: Vec<u8> = Vec::new();
 
-        if let Token::Opcode { opcode: n } = &self.opcode {
+        if let Some(Token::Opcode { opcode: n }) = &self.opcode {
             bytes.push(n.clone() as u8);
         } else {
             return Err("Non-opcode found in opcode field".to_string());
@@ -260,36 +243,19 @@ mod test {
     #[test]
     fn test_parse_instruction() {
         let parsed =
-            AssemblerInstruction::parse_opcode_with_register_and_operand("load $0 #100").unwrap();
+            AssemblerInstruction::parse_opcode_with_optional_registers("load $0 #100").unwrap();
         assert_eq!(
             parsed,
             (
                 "",
                 AssemblerInstruction {
-                    opcode: Token::Opcode {
+                    opcode: Some(Token::Opcode {
                         opcode: crate::instruction::Opcode::LOAD
-                    },
+                    }),
+                    label: None,
+                    directive: None,
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Operand { value: 100 }),
-                    operand3: None,
-                }
-            )
-        );
-    }
-
-    #[test]
-    fn test_parse_instruction_opcode_only() {
-        let parsed = AssemblerInstruction::parse_opcode("hlt").unwrap();
-        assert_eq!(
-            parsed,
-            (
-                "",
-                AssemblerInstruction {
-                    opcode: Token::Opcode {
-                        opcode: crate::instruction::Opcode::HLT
-                    },
-                    operand1: None,
-                    operand2: None,
                     operand3: None,
                 }
             )
@@ -304,9 +270,11 @@ mod test {
             (
                 "",
                 AssemblerInstruction {
-                    opcode: Token::Opcode {
+                    opcode: Some(Token::Opcode {
                         opcode: crate::instruction::Opcode::JMP
-                    },
+                    }),
+                    label: None,
+                    directive: None,
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: None,
                     operand3: None,
@@ -324,9 +292,11 @@ mod test {
             (
                 "",
                 AssemblerInstruction {
-                    opcode: Token::Opcode {
+                    opcode: Some(Token::Opcode {
                         opcode: crate::instruction::Opcode::LT
-                    },
+                    }),
+                    label: None,
+                    directive: None,
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 2 }),
                     operand3: None,
@@ -344,9 +314,11 @@ mod test {
             (
                 "",
                 AssemblerInstruction {
-                    opcode: Token::Opcode {
+                    opcode: Some(Token::Opcode {
                         opcode: crate::instruction::Opcode::ADD
-                    },
+                    }),
+                    label: None,
+                    directive: None,
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 2 }),
                     operand3: Some(Token::Register { idx: 3 }),
@@ -364,9 +336,11 @@ mod test {
                 "",
                 Program {
                     instructions: vec![AssemblerInstruction {
-                        opcode: Token::Opcode {
+                        opcode: Some(Token::Opcode {
                             opcode: crate::instruction::Opcode::LOAD
-                        },
+                        }),
+                        label: None,
+                        directive: None,
                         operand1: Some(Token::Register { idx: 0 }),
                         operand2: Some(Token::Operand { value: 100 }),
                         operand3: None,
@@ -385,9 +359,11 @@ mod test {
                 "",
                 Program {
                     instructions: vec![AssemblerInstruction {
-                        opcode: Token::Opcode {
+                        opcode: Some(Token::Opcode {
                             opcode: crate::instruction::Opcode::HLT
-                        },
+                        }),
+                        label: None,
+                        directive: None,
                         operand1: None,
                         operand2: None,
                         operand3: None,
