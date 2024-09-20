@@ -1,5 +1,8 @@
 use super::parser::Program;
 
+pub const PIE_HEADER_PREFIX: [u8; 4] = [45, 50, 49, 45];
+pub const PIE_HEADER_LENGTH: usize = 64;
+
 #[derive(Debug)]
 pub struct Assembler {
     phase: AssemblerPhase,
@@ -21,8 +24,13 @@ impl Assembler {
                 None
             },
             |(_remainder, program)| {
+                let mut assembled_program = self.write_pie_header();
                 self.process_first_phase(&program);
-                self.process_second_phase(&program).ok()
+                if let Ok(body) = self.process_second_phase(&program) {
+                    assembled_program.extend_from_slice(&body);
+                }
+
+                Some(assembled_program)
             },
         )
     }
@@ -53,6 +61,16 @@ impl Assembler {
             }
             offset += 4;
         }
+    }
+
+    fn write_pie_header(&self) -> Vec<u8> {
+        let mut header: Vec<u8> = PIE_HEADER_PREFIX.to_vec();
+
+        while header.len() < PIE_HEADER_LENGTH {
+            header.push(0 as u8);
+        }
+
+        header
     }
 }
 
@@ -110,7 +128,7 @@ enum SymbolType {
 
 #[cfg(test)]
 mod test {
-    use crate::assembler::assembler::{Assembler, SymbolTable};
+    use crate::assembler::assembler::{Assembler, SymbolTable, PIE_HEADER_LENGTH};
 
     use super::{Symbol, SymbolType};
 
@@ -137,6 +155,6 @@ mod test {
         let raw_instructions =
             "load $0 #100\nload $1 #1\nload $2 #0\ntest: inc $0\nneq $0 $2\njeq @test\nhlt";
         let program_bytes = assembler.assemble(raw_instructions).unwrap();
-        assert_eq!(program_bytes.len(), 28);
+        assert_eq!(program_bytes.len() - PIE_HEADER_LENGTH, 28);
     }
 }

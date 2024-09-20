@@ -1,6 +1,6 @@
 use std::usize;
 
-use crate::instruction::Opcode;
+use crate::{assembler::assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
 #[derive(Debug, Default)]
 pub struct VM {
@@ -25,6 +25,13 @@ impl VM {
     }
 
     pub fn run(&mut self) {
+        if !self.has_valid_header() {
+            eprintln!("Invalid header");
+            return;
+        }
+        // skip remaining heder bytes
+        self.program_counter = 64;
+
         while self.execute_instruction().is_some() {
             self.execute_instruction();
         }
@@ -178,6 +185,10 @@ impl VM {
     pub fn add_program(&mut self, bytes: Vec<u8>) {
         self.program.extend_from_slice(&bytes);
     }
+
+    fn has_valid_header(&self) -> bool {
+        self.program[..4] == PIE_HEADER_PREFIX
+    }
 }
 
 impl From<u8> for Opcode {
@@ -210,7 +221,19 @@ impl From<u8> for Opcode {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::VM;
+    use crate::{
+        assembler::assembler::{PIE_HEADER_LENGTH, PIE_HEADER_PREFIX},
+        vm::VM,
+    };
+
+    fn prepend_header(mut program_body: Vec<u8>) -> Vec<u8> {
+        let mut header = [0u8; PIE_HEADER_LENGTH];
+        header[..4].copy_from_slice(&PIE_HEADER_PREFIX);
+        let mut program = header.to_vec();
+        program.append(&mut program_body);
+
+        program
+    }
 
     #[test]
     fn test_new_vm() {
@@ -247,7 +270,7 @@ mod test {
     fn test_opcode_add() {
         let mut vm = VM::new();
         // [opcode, register, operand, operand]
-        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program = prepend_header(vec![0, 0, 1, 244]); // LOAD $0 #500
         vm.program.extend_from_slice(&vec![0, 1, 0, 7]); // LOAD $1 #7
         vm.program.extend_from_slice(&vec![1, 0, 1, 2]); // ADD $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
@@ -258,7 +281,7 @@ mod test {
     fn test_opcode_sub() {
         let mut vm = VM::new();
         // [opcode, register, operand, operand]
-        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program = prepend_header(vec![0, 0, 1, 244]); // LOAD $0 #500
         vm.program.extend_from_slice(&vec![0, 1, 0, 7]); // LOAD $1 #7
         vm.program.extend_from_slice(&vec![2, 0, 1, 2]); // SUB $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
@@ -269,7 +292,7 @@ mod test {
     fn test_opcode_mul() {
         let mut vm = VM::new();
         // [opcode, register, operand, operand]
-        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program = prepend_header(vec![0, 0, 1, 244]); // LOAD $0 #500
         vm.program.extend_from_slice(&vec![0, 1, 0, 7]); // LOAD $1 #7
         vm.program.extend_from_slice(&vec![3, 0, 1, 2]); // MUL $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
@@ -280,7 +303,7 @@ mod test {
     fn test_opcode_div_without_remainder() {
         let mut vm = VM::new();
         // [opcode, register, operand, operand]
-        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program = prepend_header(vec![0, 0, 1, 244]); // LOAD $0 #500
         vm.program.extend_from_slice(&vec![0, 1, 0, 5]); // LOAD $1 #5
         vm.program.extend_from_slice(&vec![4, 0, 1, 2]); // MUL $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
@@ -292,7 +315,7 @@ mod test {
     fn test_opcode_div_with_remainder() {
         let mut vm = VM::new();
         // [opcode, register, operand, operand]
-        vm.program = vec![0, 0, 1, 244]; // LOAD $0 #500
+        vm.program = prepend_header(vec![0, 0, 1, 244]); // LOAD $0 #500
         vm.program.extend_from_slice(&vec![0, 1, 0, 6]); // LOAD $1 #6
         vm.program.extend_from_slice(&vec![4, 0, 1, 2]); // MUL $0 $1 $2 (ADD  registers 0 and 1 and set result to register 2)
         vm.run();
@@ -512,9 +535,11 @@ mod test {
     #[test]
     fn test_opcode_inc() {
         let mut vm = VM::new();
+        println!("=>> {}", vm.program_counter);
         vm.registers[0] = 1024;
         vm.program = vec![18, 0, 0, 0]; // INC $0
         vm.run_once();
+        println!("{:?}", vm.registers);
         assert_eq!(vm.registers[0], 1025);
     }
 
@@ -542,5 +567,26 @@ mod test {
         let bytes = vec![19, 0, 0, 0]; // DEC $0
         vm.add_program(bytes.clone());
         assert_eq!(vm.program, vec![18, 0, 0, 0, 19, 0, 0, 0]);
+    }
+
+    #[test]
+    fn test_valid_header_true() {
+        let mut vm = VM::new();
+        let mut header = [0u8; 64];
+        header[..4].copy_from_slice(&PIE_HEADER_PREFIX);
+        let mut program = header.to_vec();
+        program.append(&mut vec![18, 0, 0, 0, 19, 0, 0, 0]);
+        vm.program = program;
+        assert!(vm.has_valid_header());
+    }
+
+    #[test]
+    fn test_valid_header_false() {
+        let mut vm = VM::new();
+        let header = [0u8; 64];
+        let mut program = header.to_vec();
+        program.append(&mut vec![18, 0, 0, 0, 19, 0, 0, 0]);
+        vm.program = program;
+        assert!(!vm.has_valid_header());
     }
 }
