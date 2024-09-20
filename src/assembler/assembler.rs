@@ -25,23 +25,6 @@ impl Assembler {
                 self.process_second_phase(&program).ok()
             },
         )
-
-        // match Program::parse(raw) {
-        //     Ok((_remainder, program)) => {
-        //         self.process_first_phase(&program);
-        //         match self.process_second_phase(&program) {
-        //             Ok(bytes) => Some(bytes),
-        //             Err(e) => {
-        //                 println!("Error during second phase: {:?}", e);
-        //                 None
-        //             }
-        //         }
-        //     }
-        //     Err(e) => {
-        //         println!("There was an error assembling the code: {:?}", e);
-        //         None
-        //     }
-        // }
     }
 
     fn process_first_phase(&mut self, p: &Program) {
