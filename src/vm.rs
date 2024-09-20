@@ -174,6 +174,10 @@ impl VM {
 
         operand
     }
+
+    pub fn add_program(&mut self, bytes: Vec<u8>) {
+        self.program.extend_from_slice(&bytes);
+    }
 }
 
 impl From<u8> for Opcode {
@@ -521,5 +525,22 @@ mod test {
         vm.program = vec![19, 0, 0, 0]; // DEC $0
         vm.run_once();
         assert_eq!(vm.registers[0], 1023);
+    }
+
+    #[test]
+    fn test_add_program() {
+        let mut vm = VM::new();
+        let bytes = vec![19, 0, 0, 0]; // DEC $0
+        vm.add_program(bytes.clone());
+        assert_eq!(vm.program, bytes);
+    }
+
+    #[test]
+    fn test_extend_program() {
+        let mut vm = VM::new();
+        vm.program = vec![18, 0, 0, 0]; // INC $0
+        let bytes = vec![19, 0, 0, 0]; // DEC $0
+        vm.add_program(bytes.clone());
+        assert_eq!(vm.program, vec![18, 0, 0, 0, 19, 0, 0, 0]);
     }
 }
