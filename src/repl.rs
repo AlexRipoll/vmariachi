@@ -6,7 +6,7 @@ use std::{
     process,
 };
 
-use crate::{assembler::Program, vm::VM};
+use crate::{assembler::parser::Program, vm::VM};
 
 #[derive(Debug, Default)]
 pub struct REPL {
