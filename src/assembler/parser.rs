@@ -1,11 +1,12 @@
 use crate::instruction::Opcode;
 use nom::{
     branch::alt,
-    bytes::complete::tag,
+    bytes::complete::{tag, take_until},
+    character::complete::char,
     character::complete::{alpha1, alphanumeric1, digit1, multispace0, space0},
     combinator::{map, map_res, opt},
     multi::many1,
-    sequence::{preceded, tuple},
+    sequence::{delimited, preceded, tuple},
     IResult,
 };
 
@@ -41,6 +42,7 @@ pub enum Token {
     LabelDeclaration { name: String },
     LabelUsage { name: String },
     Directive { name: String },
+    String { value: String },
 }
 
 impl Token {
@@ -105,6 +107,19 @@ impl Token {
             }
         })(input)
     }
+
+    fn parse_string(input: &str) -> IResult<&str, Token> {
+        let mut parse_content = delimited(char('\''), take_until("'"), char('\''));
+
+        let (remaining, content) = parse_content(input)?;
+
+        Ok((
+            remaining,
+            Token::String {
+                value: content.to_string(),
+            },
+        ))
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -115,6 +130,7 @@ pub struct AssemblerInstruction {
     operand1: Option<Token>,
     operand2: Option<Token>,
     operand3: Option<Token>,
+    string: Option<Token>,
 }
 
 impl AssemblerInstruction {
@@ -128,15 +144,18 @@ impl AssemblerInstruction {
     }
 
     fn parse_opcode(input: &str) -> IResult<&str, AssemblerInstruction> {
-        let (input, (label_declaration, opcode, label_usage, operand1, operand2, operand3)) =
-            tuple((
-                opt(Token::parse_label_declaration), // Optional label declaration or usage
-                Token::parse_opcode,                 // Parse the opcode
-                opt(Token::parse_label_usage),       // Optional label declaration or usage
-                opt(AssemblerInstruction::parse_operand), // Optional operand1
-                opt(AssemblerInstruction::parse_operand), // Optional operand2
-                opt(AssemblerInstruction::parse_operand), // Optional operand3
-            ))(input)?;
+        let (
+            input,
+            (label_declaration, opcode, label_usage, operand1, operand2, operand3, _string),
+        ) = tuple((
+            opt(Token::parse_label_declaration), // Optional label declaration or usage
+            Token::parse_opcode,                 // Parse the opcode
+            opt(Token::parse_label_usage),       // Optional label declaration or usage
+            opt(AssemblerInstruction::parse_operand), // Optional operand1
+            opt(AssemblerInstruction::parse_operand), // Optional operand2
+            opt(AssemblerInstruction::parse_operand), // Optional operand3
+            opt(Token::parse_string),            // Optional string constant
+        ))(input)?;
 
         Ok((
             input,
@@ -147,17 +166,19 @@ impl AssemblerInstruction {
                 operand1,
                 operand2,
                 operand3,
+                string: None,
             },
         ))
     }
 
     fn parse_directive(input: &str) -> IResult<&str, AssemblerInstruction> {
-        let (input, (label, directive, operand1, operand2, operand3)) = tuple((
+        let (input, (label, directive, operand1, operand2, operand3, string)) = tuple((
             opt(AssemblerInstruction::parse_label), // Optional label declaration or usage
             Token::parse_directive,                 // Parse the directive
             opt(AssemblerInstruction::parse_operand), // Optional operand1
             opt(AssemblerInstruction::parse_operand), // Optional operand2
             opt(AssemblerInstruction::parse_operand), // Optional operand3
+            opt(Token::parse_string),               // Optional string constant
         ))(input)?;
 
         Ok((
@@ -169,6 +190,7 @@ impl AssemblerInstruction {
                 operand1,
                 operand2,
                 operand3,
+                string,
             },
         ))
     }
@@ -345,6 +367,20 @@ mod test {
     }
 
     #[test]
+    fn test_parse_string() {
+        let input = "'This is a string'";
+        assert_eq!(
+            Token::parse_string(input).unwrap(),
+            (
+                "",
+                Token::String {
+                    value: "This is a string".to_string()
+                },
+            ),
+        );
+    }
+
+    #[test]
     fn test_parse_instruction() {
         let parsed = AssemblerInstruction::parse_opcode("load $0 #100").unwrap();
         assert_eq!(
@@ -360,6 +396,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Operand { value: 100 }),
                     operand3: None,
+                    string: None,
                 }
             )
         );
@@ -381,6 +418,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: None,
                     operand3: None,
+                    string: None,
                 }
             )
         );
@@ -402,6 +440,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 2 }),
                     operand3: None,
+                    string: None,
                 }
             )
         );
@@ -423,6 +462,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 2 }),
                     operand3: Some(Token::Register { idx: 3 }),
+                    string: None,
                 }
             )
         );
@@ -446,6 +486,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 2 }),
                     operand3: Some(Token::Register { idx: 3 }),
+                    string: None,
                 }
             )
         );
@@ -467,6 +508,7 @@ mod test {
                     operand1: None,
                     operand2: None,
                     operand3: None,
+                    string: None,
                 }
             )
         );
@@ -488,6 +530,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: None,
                     operand3: None,
+                    string: None,
                 }
             )
         );
@@ -509,6 +552,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 1 }),
                     operand3: None,
+                    string: None,
                 }
             )
         );
@@ -530,6 +574,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 1 }),
                     operand3: Some(Token::Register { idx: 2 }),
+                    string: None,
                 }
             )
         );
@@ -553,6 +598,7 @@ mod test {
                     operand1: Some(Token::Register { idx: 0 }),
                     operand2: Some(Token::Register { idx: 1 }),
                     operand3: Some(Token::Register { idx: 2 }),
+                    string: None,
                 }
             )
         );
@@ -575,6 +621,7 @@ mod test {
                         operand1: Some(Token::Register { idx: 0 }),
                         operand2: Some(Token::Operand { value: 100 }),
                         operand3: None,
+                        string: None,
                     }]
                 }
             ),
@@ -598,6 +645,7 @@ mod test {
                         operand1: None,
                         operand2: None,
                         operand3: None,
+                        string: None,
                     }]
                 }
             ),
@@ -621,6 +669,7 @@ mod test {
                         operand1: None,
                         operand2: None,
                         operand3: None,
+                        string: None,
                     }]
                 }
             ),
@@ -644,6 +693,7 @@ mod test {
                         operand1: Some(Token::Register { idx: 0 }),
                         operand2: Some(Token::Register { idx: 1 }),
                         operand3: None,
+                        string: None,
                     }]
                 }
             ),
@@ -669,6 +719,7 @@ mod test {
                         operand1: Some(Token::Register { idx: 0 }),
                         operand2: None,
                         operand3: None,
+                        string: None,
                     },]
                 }
             ),
@@ -694,6 +745,7 @@ mod test {
                         operand1: None,
                         operand2: None,
                         operand3: None,
+                        string: None,
                     }]
                 }
             ),
@@ -720,6 +772,7 @@ mod test {
                             operand1: Some(Token::Register { idx: 0 }),
                             operand2: None,
                             operand3: None,
+                            string: None,
                         },
                         AssemblerInstruction {
                             opcode: Some(Token::Opcode {
@@ -732,6 +785,7 @@ mod test {
                             operand1: None,
                             operand2: None,
                             operand3: None,
+                            string: None,
                         }
                     ]
                 }
