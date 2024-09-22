@@ -109,6 +109,7 @@ impl Token {
     }
 
     fn parse_string(input: &str) -> IResult<&str, Token> {
+        let (input, _) = space0(input)?; // Handle leading whitespace
         let mut parse_content = delimited(char('\''), take_until("'"), char('\''));
 
         let (remaining, content) = parse_content(input)?;
@@ -515,6 +516,32 @@ mod test {
     }
 
     #[test]
+    fn test_parse_instruction_with_string_directive() {
+        let parsed = AssemblerInstruction::parse_directive("test: .asciiz 'Hello'").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                AssemblerInstruction {
+                    opcode: None,
+                    label: Some(Token::LabelDeclaration {
+                        name: "test".to_string()
+                    }),
+                    directive: Some(Token::Directive {
+                        name: "asciiz".to_string()
+                    }),
+                    operand1: None,
+                    operand2: None,
+                    operand3: None,
+                    string: Some(Token::String {
+                        value: "Hello".to_string()
+                    }),
+                }
+            )
+        );
+    }
+
+    #[test]
     fn test_parse_instruction_with_directive_and_one_registers() {
         let parsed = AssemblerInstruction::parse_directive(".data $0").unwrap();
         assert_eq!(
@@ -695,6 +722,69 @@ mod test {
                         operand3: None,
                         string: None,
                     }]
+                }
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parse_program_instruction_combinations() {
+        let parsed = Program::parse(".data\nhello: .asciiz 'Hello world!'\n.code\nhlt").unwrap();
+        assert_eq!(
+            parsed,
+            (
+                "",
+                Program {
+                    instructions: vec![
+                        AssemblerInstruction {
+                            opcode: None,
+                            label: None,
+                            directive: Some(Token::Directive {
+                                name: "data".to_string()
+                            }),
+                            operand1: None,
+                            operand2: None,
+                            operand3: None,
+                            string: None,
+                        },
+                        AssemblerInstruction {
+                            opcode: None,
+                            label: Some(Token::LabelDeclaration {
+                                name: "hello".to_string()
+                            }),
+                            directive: Some(Token::Directive {
+                                name: "asciiz".to_string()
+                            }),
+                            operand1: None,
+                            operand2: None,
+                            operand3: None,
+                            string: Some(Token::String {
+                                value: "Hello world!".to_string()
+                            })
+                        },
+                        AssemblerInstruction {
+                            opcode: None,
+                            label: None,
+                            directive: Some(Token::Directive {
+                                name: "code".to_string()
+                            }),
+                            operand1: None,
+                            operand2: None,
+                            operand3: None,
+                            string: None,
+                        },
+                        AssemblerInstruction {
+                            opcode: Some(Token::Opcode {
+                                opcode: crate::instruction::Opcode::HLT
+                            }),
+                            label: None,
+                            directive: None,
+                            operand1: None,
+                            operand2: None,
+                            operand3: None,
+                            string: None,
+                        }
+                    ]
                 }
             ),
         );
